@@ -203,9 +203,24 @@ function openApp(tile, content, config) {
     isAnimating = true;
     clearTimeout(animationTimer);
 
-    // ---- 设置全屏背景色为 config.color（顶部颜色同步） ----
-    appLayer.style.background = `linear-gradient(135deg, ${config.color}, ${adjustColor(config.color, -20)})`;
-    appLayer.style.color = '#fff'; // 白色文字确保可读
+    // ---- 仅顶部颜色同步为 config.color ----
+    const header = appLayer.querySelector('.app-header');
+    if (header) {
+        header.style.background = config.color;
+        header.style.color = '#fff';
+        // 关闭按钮颜色也设为白色
+        const closeBtnEl = header.querySelector('.close-btn');
+        if (closeBtnEl) {
+            closeBtnEl.style.color = '#fff';
+            closeBtnEl.style.borderColor = 'rgba(255,255,255,0.3)';
+            closeBtnEl.style.background = 'rgba(255,255,255,0.2)';
+        }
+        // 标题图标也白色
+        const titleIcon = header.querySelector('.app-title-icon');
+        if (titleIcon) titleIcon.style.color = '#fff';
+        const titleText = header.querySelector('.app-title span');
+        if (titleText) titleText.style.color = '#fff';
+    }
 
     appTitle.textContent = content.title || config.name;
     appIcon.className = `app-title-icon ${config.icon}`;
@@ -254,9 +269,9 @@ function openApp(tile, content, config) {
     }
 
     appBody.innerHTML = html;
-    appBody.className = 'app-body'; // 重置类，保留 visible 稍后添加
+    appBody.className = 'app-body';
 
-    // 为卡片绑定点击事件（传递卡片元素）
+    // 为卡片绑定点击事件
     appBody.querySelectorAll('.mini-tile-card').forEach(card => {
         card.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -305,7 +320,7 @@ function openApp(tile, content, config) {
 
     tile.style.opacity = '0';
     illusionWrapper.style.visibility = 'visible';
-    illusionWrapper.style.zIndex = '150'; // 确保高于全屏
+    illusionWrapper.style.zIndex = '150';
 
     requestAnimationFrame(() => {
         void illusionCard.offsetHeight;
@@ -323,9 +338,7 @@ function openApp(tile, content, config) {
 
     // ---- 动画完成：显示全屏，隐藏 illusion ----
     animationTimer = setTimeout(() => {
-        // 隐藏 illusion 层（否则会遮挡全屏内容）
         illusionWrapper.style.visibility = 'hidden';
-        // 显示全屏应用
         appLayer.classList.add('active');
         appLayer.setAttribute('aria-hidden', 'false');
         appBody.classList.add('visible');
@@ -342,18 +355,15 @@ function openMiniFromApp(cardElement, url, label) {
     isAnimating = true;
     clearTimeout(animationTimer);
 
-    // 记录卡片元素和起始位置
     activeMiniCard = cardElement;
     miniStartRect = cardElement.getBoundingClientRect();
 
-    // 填充 mini-wrapper 内容
     miniTitle.textContent = label || '即将转至外链';
     miniSecurityInfo.textContent = '您即将访问外部链接，请确认安全。';
     miniUrlDisplay.textContent = url;
     miniFullUrl.textContent = url;
     miniFullUrl.style.display = 'none';
 
-    // 展开/收起
     miniExpandBtn.innerHTML = '展开 <i class="fa-solid fa-chevron-down"></i>';
     let expanded = false;
     miniExpandBtn.onclick = () => {
@@ -362,7 +372,6 @@ function openMiniFromApp(cardElement, url, label) {
         miniExpandBtn.innerHTML = expanded ? '收起 <i class="fa-solid fa-chevron-up"></i>' : '展开 <i class="fa-solid fa-chevron-down"></i>';
     };
 
-    // 复制
     miniCopyBtn.onclick = () => {
         navigator.clipboard.writeText(url).then(() => {
             miniCopyBtn.innerHTML = '<i class="fa-regular fa-check"></i> 已复制';
@@ -372,10 +381,8 @@ function openMiniFromApp(cardElement, url, label) {
         }).catch(() => {});
     };
 
-    // 访问
     miniVisitBtn.onclick = () => window.open(url, '_blank');
 
-    // ---- 构建 illusion 背面内容 ----
     const backHtml = `
         <div style="display:flex;flex-direction:column;height:100%;padding:1.5vh 1.5vw;background:var(--bg);color:var(--fg);">
             <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border);padding-bottom:1vh;">
@@ -400,7 +407,6 @@ function openMiniFromApp(cardElement, url, label) {
     illusionBack.style.padding = '0';
     illusionBack.style.overflow = 'hidden';
 
-    // ---- 设置 illusion 起始状态（卡片位置） ----
     const rect = miniStartRect;
     illusionCard.style.transition = 'none';
     illusionCard.style.top = rect.top + 'px';
@@ -410,7 +416,6 @@ function openMiniFromApp(cardElement, url, label) {
     illusionCard.style.transform = 'rotateY(0deg)';
     illusionCard.style.borderRadius = '4px';
 
-    // 正面：克隆卡片
     illusionFront.innerHTML = '';
     const clone = cardElement.cloneNode(true);
     clone.style.position = 'absolute';
@@ -436,14 +441,11 @@ function openMiniFromApp(cardElement, url, label) {
     });
     illusionFront.appendChild(clone);
 
-    // 隐藏原卡片
     cardElement.style.opacity = '0';
 
-    // 显示 illusion
     illusionWrapper.style.visibility = 'visible';
     illusionWrapper.style.zIndex = '150';
 
-    // ---- 计算终点窗口尺寸 ----
     const winW = window.innerWidth;
     const winH = window.innerHeight;
     const miniW = Math.min(winW * 0.5, 700);
@@ -451,7 +453,6 @@ function openMiniFromApp(cardElement, url, label) {
     const left = (winW - miniW) / 2;
     const top = (winH - miniH) / 2;
 
-    // ---- 执行翻转动画 ----
     requestAnimationFrame(() => {
         void illusionCard.offsetHeight;
         getComputedStyle(illusionCard).transform;
@@ -466,7 +467,6 @@ function openMiniFromApp(cardElement, url, label) {
         });
     });
 
-    // ---- 翻转完成后，显示 mini-wrapper 并隐藏 illusion ----
     animationTimer = setTimeout(() => {
         const card = document.querySelector('.mini-card');
         card.style.position = 'fixed';
@@ -569,7 +569,6 @@ function closeApp() {
     if (isAnimating) return;
     clearTimeout(animationTimer);
 
-    // 如果 mini 窗口打开，先强制关闭
     if (activeMiniCard) {
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
