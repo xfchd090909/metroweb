@@ -1,7 +1,7 @@
 // ===================== 全局状态 =====================
-let activeTile = null;           // 当前打开的全屏磁贴
-let activeMiniCard = null;       // 当前 mini 窗口对应的卡片元素
-let miniStartRect = null;        // 卡片起始位置（用于回缩动画）
+let activeTile = null;
+let activeMiniCard = null;
+let miniStartRect = null;
 let isAnimating = false;
 let animationTimer = null;
 let tileData = [];
@@ -49,7 +49,6 @@ function showError(msg) {
     console.error('[Metro UI]', msg);
 }
 
-// ===================== 分辨率自适应 =====================
 function adjustRootSize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -60,7 +59,6 @@ function adjustRootSize() {
 window.addEventListener('resize', adjustRootSize);
 window.addEventListener('load', adjustRootSize);
 
-// ===================== 主题切换 =====================
 function setTheme(theme) {
     currentTheme = theme;
     if (theme === 'light') {
@@ -76,7 +74,6 @@ themeToggle.addEventListener('click', () => {
 });
 setTheme('dark');
 
-// ===================== 时钟 =====================
 function updateClock() {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
@@ -89,7 +86,6 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// ===================== 加载配置 =====================
 async function loadConfig() {
     try {
         const resp = await fetch('./config.json');
@@ -118,7 +114,6 @@ function validateTileConfig(item) {
     return true;
 }
 
-// ===================== 渲染磁贴 =====================
 function renderTiles(configs) {
     tileGrid.innerHTML = '';
     configs.forEach((cfg, index) => {
@@ -157,7 +152,6 @@ function adjustColor(hex, amount) {
     return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
 }
 
-// ===================== 搜索过滤 =====================
 function filterTiles(keyword) {
     const tiles = tileGrid.querySelectorAll('.tile');
     const kw = keyword.trim().toLowerCase();
@@ -172,7 +166,6 @@ function filterTiles(keyword) {
 }
 searchInput.addEventListener('input', (e) => filterTiles(e.target.value));
 
-// ===================== 磁贴点击处理 =====================
 async function handleTileClick(tile) {
     if (isAnimating) return;
     if (activeTile === tile) return;
@@ -194,7 +187,7 @@ async function handleTileClick(tile) {
     openApp(tile, content, config);
 }
 
-// ===================== 全屏应用（包含嵌入式外链卡片） =====================
+// ===================== 全屏应用 =====================
 function openApp(tile, content, config) {
     if (isAnimating) return;
     if (activeTile) return;
@@ -203,19 +196,19 @@ function openApp(tile, content, config) {
     isAnimating = true;
     clearTimeout(animationTimer);
 
-    // ---- 仅顶部颜色同步为 config.color ----
+    // ---- 修改：顶部渐变颜色（使用 config.color 渐变） ----
     const header = appLayer.querySelector('.app-header');
     if (header) {
-        header.style.background = config.color;
+        const color1 = config.color;
+        const color2 = adjustColor(config.color, -30); // 变暗30
+        header.style.background = `linear-gradient(to right, ${color1}, ${color2})`;
         header.style.color = '#fff';
-        // 关闭按钮颜色也设为白色
         const closeBtnEl = header.querySelector('.close-btn');
         if (closeBtnEl) {
             closeBtnEl.style.color = '#fff';
-            closeBtnEl.style.borderColor = 'rgba(255,255,255,0.3)';
+            closeBtnEl.style.border = 'none'; // 移除边框
             closeBtnEl.style.background = 'rgba(255,255,255,0.2)';
         }
-        // 标题图标也白色
         const titleIcon = header.querySelector('.app-title-icon');
         if (titleIcon) titleIcon.style.color = '#fff';
         const titleText = header.querySelector('.app-title span');
@@ -228,7 +221,6 @@ function openApp(tile, content, config) {
     let html = '';
     if (content.body) html += `<div>${content.body}</div>`;
 
-    // 嵌入式外部链接卡片
     if (content.externalLinks && content.externalLinks.length) {
         html += `<div style="display:flex;flex-wrap:wrap;gap:1vw;margin-top:2vh;">`;
         content.externalLinks.forEach(link => {
@@ -271,7 +263,6 @@ function openApp(tile, content, config) {
     appBody.innerHTML = html;
     appBody.className = 'app-body';
 
-    // 为卡片绑定点击事件
     appBody.querySelectorAll('.mini-tile-card').forEach(card => {
         card.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -289,7 +280,6 @@ function openApp(tile, content, config) {
         });
     });
 
-    // ---- 翻转动画 ----
     const rect = getTileRect(tile);
     illusionCard.style.transition = 'none';
     illusionCard.style.top = rect.top + 'px';
@@ -336,7 +326,6 @@ function openApp(tile, content, config) {
         });
     });
 
-    // ---- 动画完成：显示全屏，隐藏 illusion ----
     animationTimer = setTimeout(() => {
         illusionWrapper.style.visibility = 'hidden';
         appLayer.classList.add('active');
@@ -347,7 +336,7 @@ function openApp(tile, content, config) {
     }, 280);
 }
 
-// ===================== 从全屏内弹出 Mini 窗口（带动画） =====================
+// ===================== Mini 窗口（带动画 + 阴影渐显渐淡） =====================
 function openMiniFromApp(cardElement, url, label) {
     if (isAnimating) return;
     if (activeMiniCard) return;
@@ -477,6 +466,8 @@ function openMiniFromApp(cardElement, url, label) {
         card.style.borderRadius = '8px';
         card.style.background = 'var(--bg)';
         card.style.color = 'var(--fg)';
+        // ---- 修改：阴影渐显（添加 transition，设置最终阴影） ----
+        card.style.transition = 'box-shadow 0.3s ease';
         card.style.boxShadow = '0 20px 60px var(--shadow)';
 
         miniWrapper.classList.add('active');
@@ -504,7 +495,7 @@ function openMiniFromApp(cardElement, url, label) {
     }, TRANSITION_DURATION + 30);
 }
 
-// ===================== 关闭 Mini 窗口（带反向动画） =====================
+// ===================== 关闭 Mini（阴影渐淡 + 翻转回缩） =====================
 function closeMiniWithAnimation() {
     if (!activeMiniCard) return;
     if (isAnimating) return;
@@ -512,55 +503,65 @@ function closeMiniWithAnimation() {
 
     isAnimating = true;
 
+    // ---- 修改：阴影渐淡 ----
     const card = document.querySelector('.mini-card');
-    const rect = card.getBoundingClientRect();
+    if (card) {
+        card.style.boxShadow = 'none'; // 触发过渡淡出
+    }
 
-    miniWrapper.classList.remove('active');
-    miniWrapper.style.display = 'none';
+    // 延迟执行翻转和隐藏，让阴影有时间淡出
+    setTimeout(() => {
+        // 隐藏 mini-wrapper
+        miniWrapper.classList.remove('active');
+        miniWrapper.style.display = 'none';
 
-    illusionWrapper.style.visibility = 'visible';
-    illusionCard.style.transition = 'none';
-    illusionCard.style.top = rect.top + 'px';
-    illusionCard.style.left = rect.left + 'px';
-    illusionCard.style.width = rect.width + 'px';
-    illusionCard.style.height = rect.height + 'px';
-    illusionCard.style.transform = 'rotateY(180deg)';
-    illusionCard.style.borderRadius = '8px';
+        // 获取当前窗口位置（从 mini-wrapper 卡片读取）
+        const rect = card ? card.getBoundingClientRect() : { top: 0, left: 0, width: 0, height: 0 };
 
-    illusionFront.innerHTML = '';
+        // 准备 illusion 从窗口位置翻转到卡片位置
+        illusionWrapper.style.visibility = 'visible';
+        illusionCard.style.transition = 'none';
+        illusionCard.style.top = rect.top + 'px';
+        illusionCard.style.left = rect.left + 'px';
+        illusionCard.style.width = rect.width + 'px';
+        illusionCard.style.height = rect.height + 'px';
+        illusionCard.style.transform = 'rotateY(180deg)';
+        illusionCard.style.borderRadius = '8px';
 
-    activeMiniCard.style.opacity = '0';
+        illusionFront.innerHTML = '';
+        activeMiniCard.style.opacity = '0';
 
-    requestAnimationFrame(() => {
-        void illusionCard.offsetHeight;
-        getComputedStyle(illusionCard).transform;
-        illusionCard.style.transition = TRANSITION_STYLE;
         requestAnimationFrame(() => {
-            const startRect = miniStartRect;
-            illusionCard.style.top = startRect.top + 'px';
-            illusionCard.style.left = startRect.left + 'px';
-            illusionCard.style.width = startRect.width + 'px';
-            illusionCard.style.height = startRect.height + 'px';
-            illusionCard.style.transform = 'rotateY(0deg)';
-            illusionCard.style.borderRadius = '4px';
+            void illusionCard.offsetHeight;
+            getComputedStyle(illusionCard).transform;
+            illusionCard.style.transition = TRANSITION_STYLE;
+            requestAnimationFrame(() => {
+                const startRect = miniStartRect;
+                illusionCard.style.top = startRect.top + 'px';
+                illusionCard.style.left = startRect.left + 'px';
+                illusionCard.style.width = startRect.width + 'px';
+                illusionCard.style.height = startRect.height + 'px';
+                illusionCard.style.transform = 'rotateY(0deg)';
+                illusionCard.style.borderRadius = '4px';
+            });
         });
-    });
 
-    animationTimer = setTimeout(() => {
-        activeMiniCard.style.opacity = '1';
-        illusionWrapper.style.visibility = 'hidden';
-        activeMiniCard = null;
-        miniStartRect = null;
-        isAnimating = false;
+        animationTimer = setTimeout(() => {
+            activeMiniCard.style.opacity = '1';
+            illusionWrapper.style.visibility = 'hidden';
+            activeMiniCard = null;
+            miniStartRect = null;
+            isAnimating = false;
 
-        if (window._miniEscHandler) {
-            document.removeEventListener('keydown', window._miniEscHandler);
-            window._miniEscHandler = null;
-        }
-        if (window._miniCloseHandler) {
-            window._miniCloseHandler = null;
-        }
-    }, TRANSITION_DURATION + 30);
+            if (window._miniEscHandler) {
+                document.removeEventListener('keydown', window._miniEscHandler);
+                window._miniEscHandler = null;
+            }
+            if (window._miniCloseHandler) {
+                window._miniCloseHandler = null;
+            }
+        }, TRANSITION_DURATION + 30);
+    }, 300); // 等待阴影淡出（与 transition 时长匹配）
 }
 
 // ===================== 关闭全屏应用 =====================
