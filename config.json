@@ -1,0 +1,32 @@
+[
+  {
+    "id": "mail",
+    "icon": "fa-envelope",
+    "name": "邮件",
+    "contentFile": "tc_mail_1.json",
+    "color": "#d83b01"
+  },
+  {
+    "id": "weather",
+    "icon": "fa-sun",
+    "name": "天气",
+    "contentFile": "tc_weather_1.json",
+    "color": "#00a98f"
+  },
+  {
+    "id": "external",
+    "icon": "fa-link",
+    "name": "外链测试",
+    "contentFile": "tc_external_1.json",
+    "color": "#9333ea"
+  }
+]
+{
+  "title": "外部链接",
+  "body": "",
+  "buttons": [],
+  "externalLink": {
+    "url": "https://www.example.com/very/long/url/that/needs/expansion?param=value&another=long",
+    "label": "访问 Example"
+  }
+}
