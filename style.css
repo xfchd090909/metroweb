@@ -222,7 +222,7 @@ body::before {
     to { transform: rotate(360deg); }
 }
 
-/* 动画层 - z-index 提升至 150 确保高于全屏 */
+/* 动画层 - z-index 150 确保高于全屏 (101) */
 #illusion-wrapper {
     position: fixed;
     inset: 0;
@@ -276,7 +276,7 @@ body::before {
     align-items: center;
     margin-bottom: 2vh;
     padding-bottom: 1.5vh;
-    border-bottom: 1px solid var(--card-border);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
     flex-shrink: 0;
 }
 #app-layer .app-title {
@@ -298,9 +298,9 @@ body::before {
     min-width: 40px;
     min-height: 40px;
     border-radius: 4px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    color: var(--fg);
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
     font-size: clamp(18px, 1.5vw, 24px);
     cursor: pointer;
     display: flex;
@@ -309,7 +309,7 @@ body::before {
     transition: background 0.2s ease;
 }
 #app-layer .close-btn:hover {
-    background: var(--muted);
+    background: rgba(255,255,255,0.4);
 }
 #app-layer .app-body {
     flex: 1;
@@ -327,11 +327,11 @@ body::before {
     width: 6px;
 }
 #app-layer .app-body::-webkit-scrollbar-track {
-    background: var(--card-bg);
+    background: rgba(255,255,255,0.1);
     border-radius: 3px;
 }
 #app-layer .app-body::-webkit-scrollbar-thumb {
-    background: var(--muted);
+    background: rgba(255,255,255,0.3);
     border-radius: 3px;
 }
 
