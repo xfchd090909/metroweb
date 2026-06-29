@@ -1,9 +1,7 @@
 {
   "title": "邮件",
-  "body": "<p>您有 12 封未读邮件。</p><ul><li>来自张伟：Q4 发布会</li><li>来自李娜：设计稿 v3.2</li></ul>",
-  "buttons": [
-    { "text": "刷新", "action": "refresh" },
-    { "text": "写邮件", "action": "compose" }
-  ],
-  "externalLink": null
+  "body": "<p>您有 12 封未读邮件。</p>",
+  "externalLinks": [
+    { "label": "帮助中心", "url": "https://help.example.com" }
+  ]
 }
