@@ -29,7 +29,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    outline: none; /* 删除点击蓝框 */
+    outline: none;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -222,11 +222,11 @@ body::before {
     to { transform: rotate(360deg); }
 }
 
-/* 动画层 */
+/* 动画层 - z-index 提升至 150 确保高于全屏 */
 #illusion-wrapper {
     position: fixed;
     inset: 0;
-    z-index: 100;
+    z-index: 150;
     pointer-events: none;
     visibility: hidden;
     perspective: 1200px;
@@ -339,7 +339,7 @@ body::before {
 #mini-wrapper {
     position: fixed;
     inset: 0;
-    z-index: 200; /* 高于全屏应用 (101) */
+    z-index: 200;
     display: none;
     align-items: center;
     justify-content: center;
