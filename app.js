@@ -1,6 +1,5 @@
 // ===================== 全局状态 =====================
 let activeTile = null;           // 当前打开的全屏磁贴
-let activeMiniTile = null;       // 当前打开的mini磁贴（用于回缩动画）
 let isAnimating = false;
 let animationTimer = null;
 let tileData = [];               // 从config.json加载的磁贴数据
@@ -52,8 +51,7 @@ function showError(msg) {
 function adjustRootSize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    // 以 1920x1080 为基准，按比例缩放，但限制范围
-    const base = Math.min(w / 1920, h / 1080) * 16; // 基准字号16px
+    const base = Math.min(w / 1920, h / 1080) * 16;
     const clamped = Math.min(Math.max(base, 10), 24);
     document.documentElement.style.fontSize = clamped + 'px';
 }
@@ -74,7 +72,6 @@ function setTheme(theme) {
 themeToggle.addEventListener('click', () => {
     setTheme(currentTheme === 'dark' ? 'light' : 'dark');
 });
-// 默认深色
 setTheme('dark');
 
 // ===================== 时钟 =====================
@@ -104,7 +101,6 @@ async function loadConfig() {
     }
 }
 
-// 校验单个磁贴配置
 function validateTileConfig(item) {
     const required = ['id', 'icon', 'name', 'contentFile', 'color'];
     for (let key of required) {
@@ -113,7 +109,6 @@ function validateTileConfig(item) {
             return false;
         }
     }
-    // 颜色格式简单校验
     if (!/^#[0-9a-fA-F]{6}$/.test(item.color)) {
         showError(`磁贴 "${item.name}" 的颜色格式错误 (应为 #RRGGBB)，忽略`);
         return false;
@@ -131,7 +126,7 @@ function renderTiles(configs) {
         tile.dataset.app = cfg.id;
         tile.dataset.index = index;
         tile.style.background = `linear-gradient(135deg, ${cfg.color}, ${adjustColor(cfg.color, -20)})`;
-        tile.style.color = '#fff'; // 确保文字白色
+        tile.style.color = '#fff';
         tile.innerHTML = `
             <i class="tile-icon ${cfg.icon}"></i>
             <div class="tile-title">${cfg.name}</div>
@@ -147,12 +142,10 @@ function renderTiles(configs) {
         tile.setAttribute('tabindex', '0');
         tileGrid.appendChild(tile);
     });
-    // 搜索过滤
     filterTiles('');
 }
 
 function adjustColor(hex, amount) {
-    // 简单变暗
     let r = parseInt(hex.slice(1,3), 16);
     let g = parseInt(hex.slice(3,5), 16);
     let b = parseInt(hex.slice(5,7), 16);
@@ -175,20 +168,17 @@ function filterTiles(keyword) {
         }
     });
 }
-searchInput.addEventListener('input', (e) => {
-    filterTiles(e.target.value);
-});
+searchInput.addEventListener('input', (e) => filterTiles(e.target.value));
 
-// ===================== 磁贴点击处理 =====================
+// ===================== 磁贴点击处理（统一全屏） =====================
 async function handleTileClick(tile) {
     if (isAnimating) return;
-    if (activeTile === tile || activeMiniTile === tile) return;
+    if (activeTile === tile) return;
 
     const index = parseInt(tile.dataset.index);
     const config = tileData[index];
     if (!config) return;
 
-    // 读取内容文件
     let content;
     try {
         const resp = await fetch(`./${config.contentFile}`);
@@ -199,20 +189,14 @@ async function handleTileClick(tile) {
         return;
     }
 
-    // 判断是否有外部链接
-    if (content.externalLink && content.externalLink.url) {
-        // 使用 mini 磁贴
-        openMini(tile, content, config);
-    } else {
-        // 使用全屏应用
-        openApp(tile, content, config);
-    }
+    // 所有磁贴统一走全屏应用，外部链接由全屏内部卡片处理
+    openApp(tile, content, config);
 }
 
-// ===================== 全屏应用 =====================
+// ===================== 全屏应用（包含嵌入式外链卡片） =====================
 function openApp(tile, content, config) {
     if (isAnimating) return;
-    if (activeTile) return; // 已有全屏打开
+    if (activeTile) return;
 
     activeTile = tile;
     isAnimating = true;
@@ -220,9 +204,44 @@ function openApp(tile, content, config) {
 
     appTitle.textContent = content.title || config.name;
     appIcon.className = `app-title-icon ${config.icon}`;
-    // 渲染内容
+
+    // ----- 构建全屏内容 -----
     let html = '';
     if (content.body) html += `<div>${content.body}</div>`;
+
+    // ---- 嵌入式外部链接卡片（与按钮同级） ----
+    if (content.externalLinks && content.externalLinks.length) {
+        html += `<div style="display:flex;flex-wrap:wrap;gap:1vw;margin-top:2vh;">`;
+        content.externalLinks.forEach(link => {
+            const safeUrl = encodeURIComponent(link.url);
+            const displayUrl = link.url.length > 60 ? link.url.slice(0, 60) + '…' : link.url;
+            html += `
+                <div class="mini-tile-card" data-url="${safeUrl}" data-label="${link.label}"
+                     style="
+                         background: var(--card-bg);
+                         border: 1px solid var(--card-border);
+                         border-radius: 4px;
+                         padding: 1.2vh 1.2vw;
+                         cursor: pointer;
+                         transition: transform 0.2s, box-shadow 0.2s;
+                         min-width: 160px;
+                         flex: 1 0 auto;
+                     "
+                     role="button" tabindex="0">
+                    <div style="display:flex;align-items:center;gap:0.6vw;">
+                        <i class="fa-solid fa-link" style="opacity:0.7;"></i>
+                        <span style="font-weight:500;">${link.label}</span>
+                    </div>
+                    <div style="font-size:0.75em;opacity:0.6;margin-top:0.3vh;word-break:break-all;">
+                        ${displayUrl}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // ---- 原有按钮 ----
     if (content.buttons && content.buttons.length) {
         html += `<div style="display:flex;gap:1vw;margin-top:2vh;">`;
         content.buttons.forEach(btn => {
@@ -230,12 +249,30 @@ function openApp(tile, content, config) {
         });
         html += `</div>`;
     }
-    appBody.innerHTML = html;
-    appBody.className = 'app-body'; // 重置可见状态
 
-    // 获取磁贴位置
+    appBody.innerHTML = html;
+    appBody.className = 'app-body';
+
+    // 为卡片绑定点击事件
+    appBody.querySelectorAll('.mini-tile-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const url = decodeURIComponent(card.dataset.url);
+            const label = card.dataset.label;
+            openMiniFromApp(url, label);
+        });
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const url = decodeURIComponent(card.dataset.url);
+                const label = card.dataset.label;
+                openMiniFromApp(url, label);
+            }
+        });
+    });
+
+    // ----- 翻转动画 -----
     const rect = getTileRect(tile);
-    // 准备克隆
     illusionCard.style.transition = 'none';
     illusionCard.style.top = rect.top + 'px';
     illusionCard.style.left = rect.left + 'px';
@@ -258,11 +295,9 @@ function openApp(tile, content, config) {
     clone.style.opacity = '1';
     illusionFront.appendChild(clone);
 
-    // 背面应用内容背景
     illusionBack.style.background = 'var(--bg)';
     illusionBack.style.color = 'var(--fg)';
     illusionBack.style.padding = '2vh 2vw';
-    // 为了预览，简单显示标题
     illusionBack.innerHTML = `<div style="font-size:clamp(24px,3vw,40px);">${content.title || config.name}</div>`;
 
     tile.style.opacity = '0';
@@ -291,33 +326,25 @@ function openApp(tile, content, config) {
     }, 280);
 }
 
-// ===================== Mini 磁贴（小窗口）=====================
-function openMini(tile, content, config) {
-    if (isAnimating) return;
-    if (activeMiniTile) return;
-
-    activeMiniTile = tile;
-    isAnimating = true;
-    clearTimeout(animationTimer);
-
-    // 填充mini内容
-    miniTitle.textContent = '即将转至外链';
+// ===================== 从全屏内弹出 Mini 窗口（小窗口，无翻转） =====================
+function openMiniFromApp(url, label) {
+    // 填充内容
+    miniTitle.textContent = label || '即将转至外链';
     miniSecurityInfo.textContent = '您即将访问外部链接，请确认安全。';
-    const url = content.externalLink.url;
     miniUrlDisplay.textContent = url;
     miniFullUrl.textContent = url;
     miniFullUrl.style.display = 'none';
-    miniExpandBtn.querySelector('i').className = 'fa-solid fa-chevron-down';
-    miniExpandBtn.textContent = '展开 ';
-    miniExpandBtn.appendChild(document.createElement('i'));
-    miniExpandBtn.querySelector('i').className = 'fa-solid fa-chevron-down';
 
-    // 设置访问按钮
-    miniVisitBtn.onclick = () => {
-        window.open(url, '_blank');
+    // 展开/收起
+    miniExpandBtn.innerHTML = '展开 <i class="fa-solid fa-chevron-down"></i>';
+    let expanded = false;
+    miniExpandBtn.onclick = () => {
+        expanded = !expanded;
+        miniFullUrl.style.display = expanded ? 'block' : 'none';
+        miniExpandBtn.innerHTML = expanded ? '收起 <i class="fa-solid fa-chevron-up"></i>' : '展开 <i class="fa-solid fa-chevron-down"></i>';
     };
 
-    // 复制功能
+    // 复制
     miniCopyBtn.onclick = () => {
         navigator.clipboard.writeText(url).then(() => {
             miniCopyBtn.innerHTML = '<i class="fa-regular fa-check"></i> 已复制';
@@ -327,180 +354,40 @@ function openMini(tile, content, config) {
         }).catch(() => {});
     };
 
-    // 展开/收起
-    let expanded = false;
-    miniExpandBtn.onclick = () => {
-        expanded = !expanded;
-        miniFullUrl.style.display = expanded ? 'block' : 'none';
-        miniExpandBtn.textContent = expanded ? '收起 ' : '展开 ';
-        const icon = document.createElement('i');
-        icon.className = expanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
-        miniExpandBtn.appendChild(icon);
-        // 动态调整卡片高度（由CSS自动适应）
-    };
+    // 访问
+    miniVisitBtn.onclick = () => window.open(url, '_blank');
 
-    // 显示mini wrapper
+    // 显示窗口
     miniWrapper.classList.add('active');
-
-    // 获取磁贴位置
-    const rect = getTileRect(tile);
-    // 计算小窗口位置（居中）
+    miniWrapper.style.display = 'flex';
+    const card = document.querySelector('.mini-card');
     const winW = window.innerWidth;
     const winH = window.innerHeight;
     const miniW = Math.min(winW * 0.5, 700);
-    const miniH = Math.min(winH * 0.6, 500);
-    const left = (winW - miniW) / 2;
-    const top = (winH - miniH) / 2;
+    card.style.position = 'fixed';
+    card.style.top = (winH * 0.2) + 'px';
+    card.style.left = (winW - miniW) / 2 + 'px';
+    card.style.width = miniW + 'px';
+    card.style.height = 'auto';
+    card.style.borderRadius = '8px';
+    card.style.background = 'var(--bg)';
+    card.style.color = 'var(--fg)';
+    card.style.boxShadow = '0 20px 60px var(--shadow)';
 
-    // 设置illusion-card到磁贴位置，然后动画到居中窗口
-    illusionCard.style.transition = 'none';
-    illusionCard.style.top = rect.top + 'px';
-    illusionCard.style.left = rect.left + 'px';
-    illusionCard.style.width = rect.width + 'px';
-    illusionCard.style.height = rect.height + 'px';
-    illusionCard.style.transform = 'rotateY(0deg)';
-    illusionCard.style.borderRadius = '4px';
+    miniCloseBtn.focus();
 
-    // 克隆磁贴到正面
-    illusionFront.innerHTML = '';
-    const clone = tile.cloneNode(true);
-    clone.style.position = 'absolute';
-    clone.style.top = '0';
-    clone.style.left = '0';
-    clone.style.width = rect.width + 'px';
-    clone.style.height = rect.height + 'px';
-    clone.style.margin = '0';
-    clone.style.transform = 'none';
-    clone.style.boxShadow = 'none';
-    clone.style.transition = 'none';
-    clone.style.opacity = '1';
-    illusionFront.appendChild(clone);
-
-    // 背面显示mini内容（但mini内容实际在#mini-wrapper中，我们不需要在背面显示，因为mini wrapper覆盖）
-    // 为了视觉效果，背面留空或显示提示
-    illusionBack.style.background = 'var(--bg)';
-    illusionBack.style.color = 'var(--fg)';
-    illusionBack.innerHTML = `<div style="padding:2vh;">${content.title || '外链'}</div>`;
-
-    tile.style.opacity = '0';
-    illusionWrapper.style.visibility = 'visible';
-
-    requestAnimationFrame(() => {
-        void illusionCard.offsetHeight;
-        getComputedStyle(illusionCard).transform;
-        illusionCard.style.transition = TRANSITION_STYLE;
-        requestAnimationFrame(() => {
-            illusionCard.style.top = top + 'px';
-            illusionCard.style.left = left + 'px';
-            illusionCard.style.width = miniW + 'px';
-            illusionCard.style.height = miniH + 'px';
-            illusionCard.style.transform = 'rotateY(180deg)';
-            illusionCard.style.borderRadius = '8px';
-        });
-    });
-
-    animationTimer = setTimeout(() => {
-        // 显示mini wrapper（覆盖在illusion之上，但透明背景，所以我们让mini wrapper显示，但illusion隐藏？）
-        // 我们让mini wrapper显示在illusion之上，但illusion要保留用于回缩动画。
-        // 为了不遮挡，我们让mini wrapper的背景透明，且卡片样式与illusion一致。
-        // 更简单：让mini wrapper显示，同时illusion保持不变，但illusion背面内容不完整，我们用mini wrapper的卡片覆盖。
-        // 我们调整mini wrapper的卡片与illusion位置一致，但这样复杂。
-        // 替代方案：翻转完成后，隐藏illusion，显示mini wrapper的卡片。
-        // 但需求要求回缩动画也使用illusion，所以我们需要在关闭时重新显示illusion并反向动画。
-        // 因此我们保留illusion，并在翻转完成后，将mini wrapper的卡片与illusion对齐，或者直接让mini wrapper显示在illusion之上，illusion作为背景。
-        // 最简单：mini wrapper的卡片设置与illusion相同位置，并透明背景，只显示内容。
-        // 我们让mini wrapper的卡片与illusion位置重叠，但mini wrapper卡片背景透明，内容显示。
-        // 但mini wrapper卡片有边框阴影，而illusion也有，可能会重叠。
-        // 我们决定：翻转完成后，隐藏illusion（visibility hidden），但我们需要保留illusion的状态以便回缩。
-        // 可以保存当前状态，然后隐藏illusion，显示mini wrapper卡片。
-        // 为了简化，我们直接显示mini wrapper卡片，并隐藏illusion，但保存参数以便回缩。
-        // 由于我们已经有activeMiniTile，回缩时我们重新设置illusion到窗口位置，再动画回磁贴。
-        // 我们选择在翻转完成后，隐藏illusion（visibility hidden），显示mini wrapper卡片（覆盖）。
-        // 同时记录窗口尺寸和位置。
-        illusionWrapper.style.visibility = 'hidden';
-        // 显示mini wrapper卡片（已经显示，但之前是隐藏的）
-        // mini wrapper已经active，但卡片内容需要更新位置（因为illusion已经定位好，但我们要显示卡片）
-        // 我们直接把mini wrapper的卡片定位到illusion位置
-        const card = document.querySelector('.mini-card');
-        card.style.position = 'fixed';
-        card.style.top = top + 'px';
-        card.style.left = left + 'px';
-        card.style.width = miniW + 'px';
-        card.style.height = miniH + 'px';
-        card.style.borderRadius = '8px';
-        card.style.background = 'var(--bg)';
-        card.style.color = 'var(--fg)';
-        // 隐藏原有的mini wrapper背景，我们使用overlay
-        // 但mini wrapper有一个overlay，我们保留
-        // 确保mini wrapper的overlay显示
-        miniWrapper.style.display = 'flex';
-        // 让卡片可见
-        card.style.display = 'flex';
-        // 设置焦点
-        miniCloseBtn.focus();
-        // 保存状态以便回缩
-        window._miniState = { top, left, width: miniW, height: miniH };
-        setTimeout(() => { isAnimating = false; }, 100);
-    }, 280);
-}
-
-// 关闭mini磁贴
-function closeMini() {
-    if (!activeMiniTile) return;
-    if (isAnimating) return;
-    clearTimeout(animationTimer);
-
-    isAnimating = true;
-    const tile = activeMiniTile;
-    const rect = getTileRect(tile);
-    const state = window._miniState || { top: 0, left: 0, width: 0, height: 0 };
-
-    // 先隐藏mini wrapper
-    miniWrapper.classList.remove('active');
-    miniWrapper.style.display = 'none';
-
-    // 恢复illusion并设置到窗口位置
-    illusionWrapper.style.visibility = 'visible';
-    illusionCard.style.transition = 'none';
-    illusionCard.style.top = state.top + 'px';
-    illusionCard.style.left = state.left + 'px';
-    illusionCard.style.width = state.width + 'px';
-    illusionCard.style.height = state.height + 'px';
-    illusionCard.style.transform = 'rotateY(180deg)';
-    illusionCard.style.borderRadius = '8px';
-
-    // 重新设置正面克隆（空）
-    illusionFront.innerHTML = '';
-    // 背面恢复显示内容（但不需要）
-    illusionBack.innerHTML = '';
-
-    // 由于我们之前隐藏了illusion，现在需要恢复，但我们需要保证磁贴隐藏
-    tile.style.opacity = '0';
-
-    requestAnimationFrame(() => {
-        void illusionCard.offsetHeight;
-        getComputedStyle(illusionCard).transform;
-        illusionCard.style.transition = TRANSITION_STYLE;
-        requestAnimationFrame(() => {
-            illusionCard.style.top = rect.top + 'px';
-            illusionCard.style.left = rect.left + 'px';
-            illusionCard.style.width = rect.width + 'px';
-            illusionCard.style.height = rect.height + 'px';
-            illusionCard.style.transform = 'rotateY(0deg)';
-            illusionCard.style.borderRadius = '4px';
-        });
-    });
-
-    animationTimer = setTimeout(() => {
-        illusionWrapper.style.visibility = 'hidden';
-        tile.style.transition = 'none';
-        tile.style.opacity = '1';
-        void tile.offsetHeight;
-        tile.style.transition = '';
-        activeMiniTile = null;
-        isAnimating = false;
-        window._miniState = null;
-    }, TRANSITION_DURATION + 30);
+    // 关闭函数（仅隐藏，不影响全屏）
+    const closeMiniFromApp = () => {
+        miniWrapper.classList.remove('active');
+        miniWrapper.style.display = 'none';
+        document.removeEventListener('keydown', escHandler);
+    };
+    const escHandler = (e) => {
+        if (e.key === 'Escape') closeMiniFromApp();
+    };
+    document.addEventListener('keydown', escHandler);
+    document.querySelector('.mini-overlay').onclick = closeMiniFromApp;
+    miniCloseBtn.onclick = closeMiniFromApp;
 }
 
 // ===================== 关闭全屏应用 =====================
@@ -517,7 +404,6 @@ function closeApp() {
     appLayer.setAttribute('aria-hidden', 'true');
     appBody.classList.remove('visible');
 
-    // 恢复illusion到全屏状态
     illusionWrapper.style.visibility = 'visible';
     illusionCard.style.transition = 'none';
     illusionCard.style.top = '0px';
@@ -527,7 +413,6 @@ function closeApp() {
     illusionCard.style.transform = 'rotateY(180deg)';
     illusionCard.style.borderRadius = '0px';
 
-    // 设置克隆（可选）
     requestAnimationFrame(() => {
         void illusionCard.offsetHeight;
         getComputedStyle(illusionCard).transform;
@@ -555,22 +440,17 @@ function closeApp() {
 
 // ===================== 全局事件绑定 =====================
 closeBtn.addEventListener('click', closeApp);
-miniCloseBtn.addEventListener('click', closeMini);
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        if (activeMiniTile) closeMini();
-        else if (activeTile) closeApp();
-    }
+    if (e.key === 'Escape' && activeTile) closeApp();
 });
 
-// 点击overlay关闭mini
-document.querySelector('.mini-overlay').addEventListener('click', closeMini);
-
-// 窗口resize时重置状态（如果打开则关闭）
 window.addEventListener('resize', () => {
-    if (activeMiniTile) closeMini();
     if (activeTile) closeApp();
+    if (miniWrapper.classList.contains('active')) {
+        miniWrapper.classList.remove('active');
+        miniWrapper.style.display = 'none';
+    }
 });
 
 // ===================== 初始化 =====================
@@ -578,7 +458,6 @@ async function init() {
     const configs = await loadConfig();
     tileData = configs;
     renderTiles(configs);
-    // 如果没有磁贴，显示空状态
     if (tileData.length === 0) {
         tileGrid.innerHTML = '<div style="grid-column:1;text-align:center;color:var(--muted);padding:5vh 0;">暂无磁贴，请添加 config.json 配置</div>';
     }

@@ -50,7 +50,7 @@ body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background: transparent; /* 删除背景图片 */
+    background: transparent;
     pointer-events: none;
     z-index: 0;
 }
@@ -147,7 +147,7 @@ body::before {
 
 .tile-grid {
     display: grid;
-    grid-template-columns: 1fr; /* 一磁贴占一排 */
+    grid-template-columns: 1fr;
     gap: 1.2vh;
     flex: 1;
     align-content: start;
@@ -201,7 +201,7 @@ body::before {
     font-weight: 500;
     letter-spacing: 0.3px;
     flex: 1;
-    text-align: center; /* 文本居中 */
+    text-align: center;
 }
 .tile-badge {
     position: absolute;
@@ -221,8 +221,6 @@ body::before {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
-
-/* 磁贴颜色由 JS 动态设置内联 style */
 
 /* 动画层 */
 #illusion-wrapper {
@@ -337,11 +335,11 @@ body::before {
     border-radius: 3px;
 }
 
-/* mini 磁贴弹窗 */
+/* mini 磁贴弹窗（作为全屏内的弹出小窗口） */
 #mini-wrapper {
     position: fixed;
     inset: 0;
-    z-index: 200;
+    z-index: 200; /* 高于全屏应用 (101) */
     display: none;
     align-items: center;
     justify-content: center;
@@ -440,6 +438,15 @@ body::before {
     margin-top: 1.5vh;
     display: flex;
     justify-content: flex-end;
+}
+
+/* 全屏内嵌外部链接卡片 */
+.mini-tile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+}
+.mini-tile-card:active {
+    transform: scale(0.98);
 }
 
 /* 时钟 */
