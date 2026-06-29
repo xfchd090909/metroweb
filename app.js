@@ -196,17 +196,17 @@ function openApp(tile, content, config) {
     isAnimating = true;
     clearTimeout(animationTimer);
 
-    // ---- 修改：顶部渐变颜色（使用 config.color 渐变） ----
+    // 顶部渐变颜色
     const header = appLayer.querySelector('.app-header');
     if (header) {
         const color1 = config.color;
-        const color2 = adjustColor(config.color, -30); // 变暗30
+        const color2 = adjustColor(config.color, -30);
         header.style.background = `linear-gradient(to right, ${color1}, ${color2})`;
         header.style.color = '#fff';
         const closeBtnEl = header.querySelector('.close-btn');
         if (closeBtnEl) {
             closeBtnEl.style.color = '#fff';
-            closeBtnEl.style.border = 'none'; // 移除边框
+            closeBtnEl.style.border = 'none';
             closeBtnEl.style.background = 'rgba(255,255,255,0.2)';
         }
         const titleIcon = header.querySelector('.app-title-icon');
@@ -466,9 +466,14 @@ function openMiniFromApp(cardElement, url, label) {
         card.style.borderRadius = '8px';
         card.style.background = 'var(--bg)';
         card.style.color = 'var(--fg)';
-        // ---- 修改：阴影渐显（添加 transition，设置最终阴影） ----
-        card.style.transition = 'box-shadow 0.3s ease';
-        card.style.boxShadow = '0 20px 60px var(--shadow)';
+        // ---- 修复：阴影渐显（先设置无阴影，再下一帧设置目标阴影触发过渡） ----
+        card.style.transition = 'box-shadow 0.35s ease';
+        card.style.boxShadow = 'none';
+        // 强制重排后设置目标阴影
+        requestAnimationFrame(() => {
+            void card.offsetHeight;
+            card.style.boxShadow = '0 20px 60px var(--shadow)';
+        });
 
         miniWrapper.classList.add('active');
         miniWrapper.style.display = 'flex';
@@ -503,13 +508,14 @@ function closeMiniWithAnimation() {
 
     isAnimating = true;
 
-    // ---- 修改：阴影渐淡 ----
+    // ---- 修复：阴影渐淡 ----
     const card = document.querySelector('.mini-card');
     if (card) {
-        card.style.boxShadow = 'none'; // 触发过渡淡出
+        card.style.transition = 'box-shadow 0.35s ease';
+        card.style.boxShadow = 'none';
     }
 
-    // 延迟执行翻转和隐藏，让阴影有时间淡出
+    // 等待阴影淡出（0.35s）后再执行翻转
     setTimeout(() => {
         // 隐藏 mini-wrapper
         miniWrapper.classList.remove('active');
@@ -561,16 +567,18 @@ function closeMiniWithAnimation() {
                 window._miniCloseHandler = null;
             }
         }, TRANSITION_DURATION + 30);
-    }, 300); // 等待阴影淡出（与 transition 时长匹配）
+    }, 360); // 略大于阴影过渡时间 0.35s
 }
 
-// ===================== 关闭全屏应用 =====================
+// ===================== 关闭全屏应用（修复：强制关闭 mini 不影响全屏翻转） =====================
 function closeApp() {
     if (!activeTile) return;
     if (isAnimating) return;
     clearTimeout(animationTimer);
 
+    // ---- 修复：强制关闭 mini 时，完全清理状态，不影响全屏动画 ----
     if (activeMiniCard) {
+        // 直接关闭 mini，不带动画
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
         activeMiniCard.style.opacity = '1';
@@ -580,7 +588,12 @@ function closeApp() {
             document.removeEventListener('keydown', window._miniEscHandler);
             window._miniEscHandler = null;
         }
+        if (window._miniCloseHandler) {
+            window._miniCloseHandler = null;
+        }
+        // 确保 illusion 隐藏并重置
         illusionWrapper.style.visibility = 'hidden';
+        illusionCard.style.transition = 'none';
     }
 
     isAnimating = true;
@@ -641,6 +654,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => {
     if (activeTile) closeApp();
     if (activeMiniCard) {
+        // 强制关闭 mini 无动画
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
         activeMiniCard.style.opacity = '1';
