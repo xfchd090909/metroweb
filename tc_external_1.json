@@ -1,9 +1,0 @@
-{
-  "title": "外部链接",
-  "body": "",
-  "buttons": [],
-  "externalLink": {
-    "url": "https://www.example.com/very/long/url/that/needs/expansion?param=value&another=long",
-    "label": "访问 Example"
-  }
-}
