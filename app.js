@@ -336,7 +336,7 @@ function openApp(tile, content, config) {
     }, 280);
 }
 
-// ===================== Mini 窗口（阴影渐显渐淡使用 class） =====================
+// ===================== Mini 窗口（阴影渐显渐淡直接操作 style，确保过渡） =====================
 function openMiniFromApp(cardElement, url, label) {
     if (isAnimating) return;
     if (activeMiniCard) return;
@@ -468,9 +468,14 @@ function openMiniFromApp(cardElement, url, label) {
         card.style.background = 'var(--bg)';
         card.style.color = 'var(--fg)';
 
-        // ---- 使用 class 控制阴影渐显 ----
-        card.classList.remove('shadow-out');
-        card.classList.add('shadow-in');
+        // ---- 修复：直接操作 boxShadow 并强制触发过渡 ----
+        card.style.transition = 'box-shadow 0.4s ease';
+        card.style.boxShadow = 'none';
+        // 强制重排后设置目标阴影，触发渐变
+        requestAnimationFrame(() => {
+            void card.offsetHeight;
+            card.style.boxShadow = '0 20px 60px var(--shadow)';
+        });
 
         miniWrapper.classList.add('active');
         miniWrapper.style.display = 'flex';
@@ -494,7 +499,7 @@ function openMiniFromApp(cardElement, url, label) {
         window._miniEscHandler = escHandler;
 
         isAnimating = false;
-        console.log('[Mini] Opened with shadow-in class');
+        console.log('[Mini] Opened with shadow fade-in');
     }, TRANSITION_DURATION + 30);
 }
 
@@ -509,8 +514,9 @@ function closeMiniWithAnimation() {
 
     const card = document.querySelector('.mini-card');
     if (card) {
-        card.classList.remove('shadow-in');
-        card.classList.add('shadow-out');
+        // 先设置阴影淡出
+        card.style.transition = 'box-shadow 0.4s ease';
+        card.style.boxShadow = 'none';
     }
 
     // 等待阴影淡出（0.4s）后再执行翻转
@@ -563,10 +569,10 @@ function closeMiniWithAnimation() {
             }
             console.log('[Mini] Closed and cleaned up');
         }, TRANSITION_DURATION + 30);
-    }, 420); // 略大于阴影过渡时间 0.4s
+    }, 450); // 比过渡时间略长，确保阴影完全淡出
 }
 
-// ===================== 关闭全屏应用（修复：彻底重置） =====================
+// ===================== 关闭全屏应用 =====================
 function closeApp() {
     if (!activeTile) return;
     if (isAnimating) return;
@@ -574,15 +580,15 @@ function closeApp() {
 
     console.log('[App] Closing fullscreen app');
 
-    // ---- 强制关闭 mini 并彻底清理 ----
+    // 强制关闭 mini 并彻底清理
     if (activeMiniCard) {
         console.log('[App] Force closing mini');
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
         const card = document.querySelector('.mini-card');
         if (card) {
-            card.classList.remove('shadow-in', 'shadow-out');
             card.style.boxShadow = 'none';
+            card.style.transition = 'none';
         }
         activeMiniCard.style.opacity = '1';
         activeMiniCard = null;
@@ -594,10 +600,8 @@ function closeApp() {
         if (window._miniCloseHandler) {
             window._miniCloseHandler = null;
         }
-        // 关键：重置 illusion 为隐藏状态，避免残留影响
         illusionWrapper.style.visibility = 'hidden';
         illusionCard.style.transition = 'none';
-        // 重置 illusionCard 的位置到屏幕外（避免闪烁）
         illusionCard.style.top = '-9999px';
         illusionCard.style.left = '-9999px';
     }
@@ -610,7 +614,6 @@ function closeApp() {
     appLayer.setAttribute('aria-hidden', 'true');
     appBody.classList.remove('visible');
 
-    // 重新设置 illusion 为全屏状态，准备回缩动画
     illusionWrapper.style.visibility = 'visible';
     illusionCard.style.transition = 'none';
     illusionCard.style.top = '0px';
@@ -620,7 +623,6 @@ function closeApp() {
     illusionCard.style.transform = 'rotateY(180deg)';
     illusionCard.style.borderRadius = '0px';
 
-    // 确保正面有内容（克隆磁贴）
     const cloneForBack = tile.cloneNode(true);
     cloneForBack.style.position = 'absolute';
     cloneForBack.style.top = '0';
@@ -680,7 +682,10 @@ window.addEventListener('resize', () => {
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
         const card = document.querySelector('.mini-card');
-        if (card) card.classList.remove('shadow-in', 'shadow-out');
+        if (card) {
+            card.style.boxShadow = 'none';
+            card.style.transition = 'none';
+        }
         activeMiniCard.style.opacity = '1';
         activeMiniCard = null;
         miniStartRect = null;
