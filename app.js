@@ -336,10 +336,11 @@ function openApp(tile, content, config) {
     }, 280);
 }
 
-// ===================== Mini 窗口（带动画 + 阴影渐显渐淡） =====================
+// ===================== Mini 窗口（阴影渐显渐淡使用 class） =====================
 function openMiniFromApp(cardElement, url, label) {
     if (isAnimating) return;
     if (activeMiniCard) return;
+    console.log('[Mini] Opening with shadow fade-in');
 
     isAnimating = true;
     clearTimeout(animationTimer);
@@ -466,14 +467,10 @@ function openMiniFromApp(cardElement, url, label) {
         card.style.borderRadius = '8px';
         card.style.background = 'var(--bg)';
         card.style.color = 'var(--fg)';
-        // ---- 修复：阴影渐显（先设置无阴影，再下一帧设置目标阴影触发过渡） ----
-        card.style.transition = 'box-shadow 0.35s ease';
-        card.style.boxShadow = 'none';
-        // 强制重排后设置目标阴影
-        requestAnimationFrame(() => {
-            void card.offsetHeight;
-            card.style.boxShadow = '0 20px 60px var(--shadow)';
-        });
+
+        // ---- 使用 class 控制阴影渐显 ----
+        card.classList.remove('shadow-out');
+        card.classList.add('shadow-in');
 
         miniWrapper.classList.add('active');
         miniWrapper.style.display = 'flex';
@@ -497,34 +494,32 @@ function openMiniFromApp(cardElement, url, label) {
         window._miniEscHandler = escHandler;
 
         isAnimating = false;
+        console.log('[Mini] Opened with shadow-in class');
     }, TRANSITION_DURATION + 30);
 }
 
-// ===================== 关闭 Mini（阴影渐淡 + 翻转回缩） =====================
+// ===================== 关闭 Mini（阴影渐淡） =====================
 function closeMiniWithAnimation() {
     if (!activeMiniCard) return;
     if (isAnimating) return;
     clearTimeout(animationTimer);
 
+    console.log('[Mini] Closing with shadow fade-out');
     isAnimating = true;
 
-    // ---- 修复：阴影渐淡 ----
     const card = document.querySelector('.mini-card');
     if (card) {
-        card.style.transition = 'box-shadow 0.35s ease';
-        card.style.boxShadow = 'none';
+        card.classList.remove('shadow-in');
+        card.classList.add('shadow-out');
     }
 
-    // 等待阴影淡出（0.35s）后再执行翻转
+    // 等待阴影淡出（0.4s）后再执行翻转
     setTimeout(() => {
-        // 隐藏 mini-wrapper
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
 
-        // 获取当前窗口位置（从 mini-wrapper 卡片读取）
         const rect = card ? card.getBoundingClientRect() : { top: 0, left: 0, width: 0, height: 0 };
 
-        // 准备 illusion 从窗口位置翻转到卡片位置
         illusionWrapper.style.visibility = 'visible';
         illusionCard.style.transition = 'none';
         illusionCard.style.top = rect.top + 'px';
@@ -566,21 +561,29 @@ function closeMiniWithAnimation() {
             if (window._miniCloseHandler) {
                 window._miniCloseHandler = null;
             }
+            console.log('[Mini] Closed and cleaned up');
         }, TRANSITION_DURATION + 30);
-    }, 360); // 略大于阴影过渡时间 0.35s
+    }, 420); // 略大于阴影过渡时间 0.4s
 }
 
-// ===================== 关闭全屏应用（修复：强制关闭 mini 不影响全屏翻转） =====================
+// ===================== 关闭全屏应用（修复：彻底重置） =====================
 function closeApp() {
     if (!activeTile) return;
     if (isAnimating) return;
     clearTimeout(animationTimer);
 
-    // ---- 修复：强制关闭 mini 时，完全清理状态，不影响全屏动画 ----
+    console.log('[App] Closing fullscreen app');
+
+    // ---- 强制关闭 mini 并彻底清理 ----
     if (activeMiniCard) {
-        // 直接关闭 mini，不带动画
+        console.log('[App] Force closing mini');
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
+        const card = document.querySelector('.mini-card');
+        if (card) {
+            card.classList.remove('shadow-in', 'shadow-out');
+            card.style.boxShadow = 'none';
+        }
         activeMiniCard.style.opacity = '1';
         activeMiniCard = null;
         miniStartRect = null;
@@ -591,9 +594,12 @@ function closeApp() {
         if (window._miniCloseHandler) {
             window._miniCloseHandler = null;
         }
-        // 确保 illusion 隐藏并重置
+        // 关键：重置 illusion 为隐藏状态，避免残留影响
         illusionWrapper.style.visibility = 'hidden';
         illusionCard.style.transition = 'none';
+        // 重置 illusionCard 的位置到屏幕外（避免闪烁）
+        illusionCard.style.top = '-9999px';
+        illusionCard.style.left = '-9999px';
     }
 
     isAnimating = true;
@@ -604,6 +610,7 @@ function closeApp() {
     appLayer.setAttribute('aria-hidden', 'true');
     appBody.classList.remove('visible');
 
+    // 重新设置 illusion 为全屏状态，准备回缩动画
     illusionWrapper.style.visibility = 'visible';
     illusionCard.style.transition = 'none';
     illusionCard.style.top = '0px';
@@ -612,6 +619,21 @@ function closeApp() {
     illusionCard.style.height = '100vh';
     illusionCard.style.transform = 'rotateY(180deg)';
     illusionCard.style.borderRadius = '0px';
+
+    // 确保正面有内容（克隆磁贴）
+    const cloneForBack = tile.cloneNode(true);
+    cloneForBack.style.position = 'absolute';
+    cloneForBack.style.top = '0';
+    cloneForBack.style.left = '0';
+    cloneForBack.style.width = '100vw';
+    cloneForBack.style.height = '100vh';
+    cloneForBack.style.margin = '0';
+    cloneForBack.style.transform = 'none';
+    cloneForBack.style.boxShadow = 'none';
+    cloneForBack.style.transition = 'none';
+    cloneForBack.style.opacity = '1';
+    illusionFront.innerHTML = '';
+    illusionFront.appendChild(cloneForBack);
 
     requestAnimationFrame(() => {
         void illusionCard.offsetHeight;
@@ -635,6 +657,7 @@ function closeApp() {
         tile.style.transition = '';
         activeTile = null;
         isAnimating = false;
+        console.log('[App] Fullscreen closed');
     }, TRANSITION_DURATION + 30);
 }
 
@@ -654,9 +677,10 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => {
     if (activeTile) closeApp();
     if (activeMiniCard) {
-        // 强制关闭 mini 无动画
         miniWrapper.classList.remove('active');
         miniWrapper.style.display = 'none';
+        const card = document.querySelector('.mini-card');
+        if (card) card.classList.remove('shadow-in', 'shadow-out');
         activeMiniCard.style.opacity = '1';
         activeMiniCard = null;
         miniStartRect = null;
@@ -676,6 +700,7 @@ async function init() {
     if (tileData.length === 0) {
         tileGrid.innerHTML = '<div style="grid-column:1;text-align:center;color:var(--muted);padding:5vh 0;">暂无磁贴，请添加 config.json 配置</div>';
     }
+    console.log('[App] Initialized');
 }
 
 init();

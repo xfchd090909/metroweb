@@ -340,7 +340,7 @@ body::before {
     border-radius: 3px;
 }
 
-/* ---- mini 磁贴（阴影渐变由 JS 控制） ---- */
+/* ---- mini 磁贴（阴影渐显渐淡由 class 控制） ---- */
 #mini-wrapper {
     position: fixed;
     inset: 0;
@@ -366,8 +366,8 @@ body::before {
     background: var(--bg);
     color: var(--fg);
     border-radius: 8px;
-    box-shadow: none; /* 初始无阴影，由 JS 控制 */
-    transition: box-shadow 0.35s ease, height 0.3s ease;
+    box-shadow: none; /* 初始无阴影 */
+    transition: box-shadow 0.4s ease, height 0.3s ease;
     width: clamp(400px, 50vw, 700px);
     max-height: 80vh;
     display: flex;
@@ -376,6 +376,12 @@ body::before {
     border: 1px solid var(--card-border);
     pointer-events: auto;
     overflow: hidden;
+}
+.mini-card.shadow-in {
+    box-shadow: 0 20px 60px var(--shadow) !important;
+}
+.mini-card.shadow-out {
+    box-shadow: none !important;
 }
 .mini-header {
     display: flex;
